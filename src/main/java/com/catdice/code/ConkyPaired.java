@@ -6,13 +6,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
@@ -22,105 +22,104 @@ import org.eclipse.swt.widgets.Shell;
  * 
  */
 public class ConkyPaired {
-	private Log logger = LogFactory.getLog(this.getClass());
-	boolean toggle = false;
+    private Log logger = LogFactory.getLog(this.getClass());
+    boolean toggle = false;
 
-	public static void main(String[] args) {
-		new ConkyPaired();
-	}
+    public static void main(String[] args) {
+        List<Pair> choices = new ArrayList<Pair>();
+        choices.add(new Pair("dragon", "scripts/1_conkyrc", "pics/1.jpg"));
+        choices.add(new Pair("girl", "scripts/2_conkyrc", "pics/2.jpg"));
+        new ConkyPaired(choices);
+    }
 
-	private ConkyPaired() {
-		Display display = new Display();
-		Shell shell = new Shell(display);
-		Button ok = new Button(shell, SWT.PUSH);
-		ok.setText("Change Background");
-		ok.addSelectionListener(new SelectionAdapter() {
-			public void widgetSelected(SelectionEvent e) {
-				System.out.println("Changed Background?");
-				String fileLoc = "pics/1.jpg";
-				if (toggle) {
-					fileLoc = "pics/2.jpg";
-				}
+    private ConkyPaired(List<Pair> choices) {
+        Display display = new Display();
+        Shell shell = new Shell(display);
 
-				File picFile = new File(fileLoc);
+        int buttonNum = 0;
 
-				fileLoc = "scripts/1_conkyrc";
-				if (toggle) {
-					fileLoc = "scripts/2_conkyrc";
-				}
+        for (final Pair pair : choices) {
+            Button b = new Button(shell, SWT.PUSH);
+            b.setText(pair.getName());
+            b.addSelectionListener(new SelectionAdapter() {
+                public void widgetSelected(SelectionEvent e) {
+                    logger.info("Changed Background to " + pair.getName());
+                    changeConkyAndPic(pair.getPicLoc(), pair.getConkyLoc());
+                }
+            });
+            b.setLocation(0, 40 * buttonNum);
+            b.pack();
+            buttonNum++;
+        }
 
-				File conkyFile = new File(fileLoc);
-				toggle = !toggle;
-				try {
-					String desktopSession = System.getenv("DESKTOP_SESSION");
-					setWallpaper(picFile, desktopSession);
-					runConkyScript(conkyFile);
-				} catch (IOException ex) {
-					System.err.println("Error! " + ex.toString());
-				}
-			}
+        shell.pack();
+        shell.open();
+        while (!shell.isDisposed()) {
+            if (!display.readAndDispatch())
+                display.sleep();
+        }
+        display.dispose();
+    }
 
-		});
-		shell.setDefaultButton(ok);
-		shell.setLayout(new RowLayout());
-		shell.pack();
-		shell.open();
-		while (!shell.isDisposed()) {
-			if (!display.readAndDispatch())
-				display.sleep();
-		}
-		display.dispose();
-	}
+    private void changeConkyAndPic(String fileLocPic, String fileLocConky) {
+        File picFile = new File(fileLocPic);
+        File conkyFile = new File(fileLocConky);
+        try {
+            String desktopSession = System.getenv("DESKTOP_SESSION");
+            killConkyScripts(conkyFile);
+            setWallpaper(picFile, desktopSession);
+            runConkyScript(conkyFile);
+        } catch (IOException e1) {
+            System.err.println("Error! " + e1.toString());
+        } catch (InterruptedException e2) {
+            System.err.println("Error! " + e2.toString());
+        }
+    }
 
-	// original gconftool-2 and /desktop/gnome/...
-	public void setWallpaper(File file, String desktopSession)
-			throws IOException {
-		String[] script;
-		if (desktopSession.equals("mate")) {
-			String s[] = { "mateconftool-2", "-t", "string", "-s",
-					"/desktop/mate/background/picture_filename",
-					file.getAbsolutePath() };
-			script = s;
-		} else {
-			String s[] = { "gconftool-2", "-t", "string", "-s",
-					"/desktop/gnome/background/picture_filename",
-					file.getAbsolutePath() };
-			script = s;
-		}
-		Runtime runtime = Runtime.getRuntime();
-		if (file.exists()) {
-			runtime.exec(script);
-		}
-	}
+    // original gconftool-2 and /desktop/gnome/...
+    public void setWallpaper(File file, String desktopSession) throws IOException, InterruptedException {
+        String[] script;
+        if (desktopSession.equals("mate")) {
+            String s[] = { "mateconftool-2", "-t", "string", "-s", "/desktop/mate/background/picture_filename", file.getAbsolutePath() };
+            script = s;
+        } else {
+            String s[] = { "gconftool-2", "-t", "string", "-s", "/desktop/gnome/background/picture_filename", file.getAbsolutePath() };
+            script = s;
+        }
+        Runtime runtime = Runtime.getRuntime();
+        if (file.exists()) {
+            runtime.exec(script);
+        }
+    }
 
-	private void runConkyScript(File file) throws IOException {
-		// String[] scriptKillConky = { "/usr/bin/pkill", "'^conky$'" };
-		Runtime runtime = Runtime.getRuntime();
+    private void runConkyScript(File file) throws IOException {
+        // String[] scriptKillConky = { "/usr/bin/pkill", "'^conky$'" };
+        Runtime runtime = Runtime.getRuntime();
 
-		String[] scriptKillConky = { "/usr/bin/pkill", "conky" };
-		String[] scriptFindConky = { "/usr/bin/pgrep", "conky" };
+        if (file.exists() && file.isFile()) {
+            String[] scriptRunConky = { "conky", "-b", "-c", file.getAbsolutePath() };
+            runtime.exec(scriptRunConky); // run conky with new conkyrc
+        }
+    }
 
-		Process proc = runtime.exec(scriptFindConky); // find running instance
-														// of conky, if
-		InputStream stdin = proc.getInputStream();
-		InputStreamReader isr = new InputStreamReader(stdin);
-		BufferedReader br = new BufferedReader(isr);
-		String line = null;
-		ArrayList<String> runningConkys = new ArrayList<String>();
-		while ((line = br.readLine()) != null) {
-			runningConkys.add(line);
-		}
-
-		for (String process : runningConkys) {
-			String[] killConky = { "/bin/kill", process };
-			runtime.exec(killConky);
-		}
-
-		if (file.exists() && file.isFile()) {
-			String[] scriptRunConky = { "conky", "-c", file.getAbsolutePath() };
-			// runtime.exec(scriptKillConky); // kill running instance of conky
-			runtime.exec(scriptRunConky); // run conky with new conkyrc
-		}
-
-	}
+    private void killConkyScripts(File file) throws IOException {
+        Runtime runtime = Runtime.getRuntime();
+        String[] scriptFindConky = { "/usr/bin/pgrep", "conky" };
+        Process proc = runtime.exec(scriptFindConky); // find running conkys
+        InputStream stdin = proc.getInputStream();
+        InputStreamReader isr = new InputStreamReader(stdin);
+        BufferedReader br = new BufferedReader(isr);
+        ArrayList<String> runningConkys = new ArrayList<String>();
+        String line = null;
+        while ((line = br.readLine()) != null) {
+            runningConkys.add(line);
+        }
+        if (file.exists() && file.isFile()) {
+            // kill all other conkys
+            for (String process : runningConkys) {
+                String[] killConky = { "/bin/kill", process };
+                runtime.exec(killConky);
+            }
+        }
+    }
 }
