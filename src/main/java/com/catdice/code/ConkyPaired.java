@@ -6,59 +6,132 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
+import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 
 /**
  * Hello world!
- * 
  */
 public class ConkyPaired {
     private Log logger = LogFactory.getLog(this.getClass());
-    boolean toggle = false;
+    private String picsLoc = "pics";
+    private String scriptsLoc = "scripts";
+
+    private final Display display = new Display();
+    private final Shell shell = new Shell(display, SWT.TITLE);
+    private final Shell managementShell = new Shell(display);
+    private String choice = "";
+    List<Pair> pairs = new ArrayList<Pair>();
 
     public static void main(String[] args) {
-        List<Pair> choices = new ArrayList<Pair>();
-        choices.add(new Pair("dragon", "scripts/1_conkyrc", "pics/1.jpg"));
-        choices.add(new Pair("girl", "scripts/2_conkyrc", "pics/2.jpg"));
-        new ConkyPaired(choices);
+        new ConkyPaired();
     }
 
-    private ConkyPaired(List<Pair> choices) {
-        Display display = new Display();
-        Shell shell = new Shell(display);
+    private ConkyPaired() {
+        shell.setText("Conky BG");
+        shell.setLayout(new FillLayout(SWT.VERTICAL));
+        choice = null;
 
-        int buttonNum = 0;
-
-        for (final Pair pair : choices) {
-            Button b = new Button(shell, SWT.PUSH);
-            b.setText(pair.getName());
-            b.addSelectionListener(new SelectionAdapter() {
-                public void widgetSelected(SelectionEvent e) {
-                    logger.info("Changed Background to " + pair.getName());
-                    changeConkyAndPic(pair.getPicLoc(), pair.getConkyLoc());
-                }
-            });
-            b.setLocation(0, 40 * buttonNum);
-            b.pack();
-            buttonNum++;
-        }
+        populateChoicesList();
+        initializeMenu();
+        initializeList();
+        setUpButton();
 
         shell.pack();
+        shell.setSize(180, 200);
         shell.open();
         while (!shell.isDisposed()) {
             if (!display.readAndDispatch())
                 display.sleep();
         }
         display.dispose();
+    }
+
+    private void initializeList() {
+        final org.eclipse.swt.widgets.List list = new org.eclipse.swt.widgets.List(shell, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
+        for (Pair p : pairs) {
+            list.add(p.getName());
+        }
+        list.addSelectionListener(new SelectionListener() {
+            public void widgetSelected(SelectionEvent event) {
+                handleChoice(event);
+            }
+
+            public void widgetDefaultSelected(SelectionEvent event) {
+                logger.info("default selection");
+                handleChoice(event);
+            }
+
+            private void handleChoice(SelectionEvent event) {
+                String[] selections = list.getSelection();
+                String choiceText = selections[0];
+                logger.info("You selected: " + choiceText);
+                choice = choiceText;
+            }
+        });
+    }
+
+    private void initializeMenu() {
+        Menu bar = new Menu(shell, SWT.BAR);
+        MenuItem fileItem = new MenuItem(bar, SWT.CASCADE);
+        fileItem.setText("&File");
+        Menu submenu = new Menu(shell, SWT.DROP_DOWN);
+        fileItem.setMenu(submenu);
+        MenuItem item = new MenuItem(submenu, SWT.PUSH);
+        item.setText("Manage");
+        item.addListener(SWT.Selection, new Listener() {
+            public void handleEvent(Event e) {
+                logger.info("manage");
+                managementShell.open();
+            }
+        });
+
+        shell.setMenuBar(bar);
+    }
+
+    private void setUpButton() {
+        int buttonNum = 0;
+        /* the load button */
+        Button loadButton = new Button(shell, SWT.PUSH);
+        loadButton.setText("Load");
+        loadButton.addSelectionListener(new SelectionAdapter() {
+            public void widgetSelected(SelectionEvent e) {
+                Pair pair = getPair(choice);
+                changeConkyAndPic(pair.getPicLoc(), pair.getConkyLoc());
+                logger.info("Changed Background to " + pair.getName());
+            }
+        });
+        buttonNum = processButtonLocation(loadButton, buttonNum);
+        shell.pack();
+    }
+
+    /* finds the pair matching the choice in the list of pairs */
+    private Pair getPair(String choice) {
+        Pair pairRv = null;
+        for (Pair p : pairs) {
+            if (p.getName().equals(choice)) {
+                pairRv = p;
+                break;
+            }
+        }
+        return pairRv;
     }
 
     private void changeConkyAndPic(String fileLocPic, String fileLocConky) {
@@ -74,6 +147,14 @@ public class ConkyPaired {
         } catch (InterruptedException e2) {
             System.err.println("Error! " + e2.toString());
         }
+    }
+
+    public int processButtonLocation(Button b, int buttonNum) {
+        b.setLocation(10, 40 * buttonNum + 10);
+        buttonNum++;
+        b.pack();
+        b.setSize(80, 25);
+        return buttonNum;
     }
 
     // original gconftool-2 and /desktop/gnome/...
@@ -121,5 +202,41 @@ public class ConkyPaired {
                 runtime.exec(killConky);
             }
         }
+    }
+
+    private void populateChoicesList() {
+        File picsDir = new File(picsLoc);
+        File scriptsDir = new File(scriptsLoc);
+        List<String> pics = Arrays.asList(picsDir.list());
+        List<String> scripts = Arrays.asList(scriptsDir.list());
+        HashMap<Integer, String> numToScript = new HashMap<Integer, String>();
+        HashMap<Integer, String> numToPic = new HashMap<Integer, String>();
+
+        for (String scriptName : scripts) {
+            /* extract a number from the file name */
+            Integer scriptNumber = Integer.parseInt(scriptName.replaceAll("[\\D]", ""));
+            if (scriptNumber != null) {
+                numToScript.put(scriptNumber, scriptName);
+            }
+        }
+
+        for (String picName : pics) {
+            /* extract a number from the file name */
+            Integer picNumber = Integer.parseInt(picName.replaceAll("[\\D]", ""));
+            if (picNumber != null) {
+                numToPic.put(picNumber, picName);
+            }
+        }
+
+        Set<Integer> scriptInts = numToScript.keySet();
+
+        for (Integer scriptInt : scriptInts) {
+            if (numToPic.containsKey(scriptInt)) {
+
+            }
+        }
+
+        pairs.add(new Pair("dragon", "scripts/1_conkyrc", "pics/1.jpg"));
+        pairs.add(new Pair("girl", "scripts/2_conkyrc", "pics/2.jpg"));
     }
 }
