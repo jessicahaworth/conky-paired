@@ -2,14 +2,13 @@ package com.catdice.code;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -24,15 +23,20 @@ import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
+import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Shell;
+
+import au.com.bytecode.opencsv.CSVReader;
 
 /**
  * Hello world!
  */
 public class ConkyPaired {
     private Log logger = LogFactory.getLog(this.getClass());
+    private String listsLoc = "lists";
     private String picsLoc = "pics";
     private String scriptsLoc = "scripts";
+    private String mainList = "main.list";
 
     private final Display display = new Display();
     private final Shell shell = new Shell(display, SWT.TITLE);
@@ -52,10 +56,10 @@ public class ConkyPaired {
         populateChoicesList();
         initializeMenu();
         initializeList();
-        setUpButton();
+        setUpButtons();
 
         shell.pack();
-        shell.setSize(180, 200);
+        shell.setSize(180, 300);
         shell.open();
         while (!shell.isDisposed()) {
             if (!display.readAndDispatch())
@@ -64,8 +68,10 @@ public class ConkyPaired {
         display.dispose();
     }
 
+    /* initializes the list of pairs in the gui */
     private void initializeList() {
-        final org.eclipse.swt.widgets.List list = new org.eclipse.swt.widgets.List(shell, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
+        final org.eclipse.swt.widgets.List list;
+        list = new org.eclipse.swt.widgets.List(shell, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
         for (Pair p : pairs) {
             list.add(p.getName());
         }
@@ -86,8 +92,11 @@ public class ConkyPaired {
                 choice = choiceText;
             }
         });
+
+        list.pack();
     }
 
+    /* initializes the dropdown menu */
     private void initializeMenu() {
         Menu bar = new Menu(shell, SWT.BAR);
         MenuItem fileItem = new MenuItem(bar, SWT.CASCADE);
@@ -106,11 +115,13 @@ public class ConkyPaired {
         shell.setMenuBar(bar);
     }
 
-    private void setUpButton() {
+    /* adds the Load button to the gui */
+    private void setUpButtons() {
         int buttonNum = 0;
+
         /* the load button */
         Button loadButton = new Button(shell, SWT.PUSH);
-        loadButton.setText("Load");
+        loadButton.setText("Change");
         loadButton.addSelectionListener(new SelectionAdapter() {
             public void widgetSelected(SelectionEvent e) {
                 Pair pair = getPair(choice);
@@ -119,7 +130,48 @@ public class ConkyPaired {
             }
         });
         buttonNum = processButtonLocation(loadButton, buttonNum);
+
+        /* the delete button */
+        Button deleteButton = new Button(shell, SWT.PUSH);
+        deleteButton.setText("Delete");
+        deleteButton.addSelectionListener(new SelectionAdapter() {
+            public void widgetSelected(SelectionEvent e) {
+                Pair pair = getPair(choice);
+                MessageBox messageBox = new MessageBox(shell, SWT.ICON_QUESTION | SWT.OK | SWT.CANCEL);
+                messageBox.setText("About to delete");
+                messageBox.setMessage("Delete the pair \"" + pair.getName() + "\"?");
+                logger.info("Asking to delete " + pair.getName());
+                int buttonID = messageBox.open();
+                switch (buttonID) {
+                case SWT.YES:
+                    logger.info("Deleting " + pair.getName());
+                    pairs.remove(pair);
+                    persistPairs();
+                case SWT.CANCEL:
+                    logger.info("Aborted deletion of " + pair.getName());
+                    /* do nothing */
+                }
+            }
+        });
+        buttonNum = processButtonLocation(deleteButton, buttonNum);
+
+        /* the new button */
+        Button newButton = new Button(shell, SWT.PUSH);
+        newButton.setText("New");
+        newButton.addSelectionListener(new SelectionAdapter() {
+            public void widgetSelected(SelectionEvent e) {
+                logger.info("Creating new pair");
+                managementShell.open();
+            }
+        });
+        buttonNum = processButtonLocation(newButton, buttonNum);
+
         shell.pack();
+    }
+
+    /* rewrites the main file to reflect the pairs in memory */
+    private void persistPairs() {
+        // TODO Auto-generated method stub
     }
 
     /* finds the pair matching the choice in the list of pairs */
@@ -134,6 +186,7 @@ public class ConkyPaired {
         return pairRv;
     }
 
+    /* change the desktop background and conky script to the new choice */
     private void changeConkyAndPic(String fileLocPic, String fileLocConky) {
         File picFile = new File(fileLocPic);
         File conkyFile = new File(fileLocConky);
@@ -149,6 +202,7 @@ public class ConkyPaired {
         }
     }
 
+    /* adds a button the gui */
     public int processButtonLocation(Button b, int buttonNum) {
         b.setLocation(10, 40 * buttonNum + 10);
         buttonNum++;
@@ -157,7 +211,8 @@ public class ConkyPaired {
         return buttonNum;
     }
 
-    // original gconftool-2 and /desktop/gnome/...
+    /* change the desktop background
+     * original gconftool-2 and /desktop/gnome/... */
     public void setWallpaper(File file, String desktopSession) throws IOException, InterruptedException {
         String[] script;
         if (desktopSession.equals("mate")) {
@@ -173,6 +228,7 @@ public class ConkyPaired {
         }
     }
 
+    /* runs a new conky process */
     private void runConkyScript(File file) throws IOException {
         // String[] scriptKillConky = { "/usr/bin/pkill", "'^conky$'" };
         Runtime runtime = Runtime.getRuntime();
@@ -183,6 +239,7 @@ public class ConkyPaired {
         }
     }
 
+    /* kills the conky process */
     private void killConkyScripts(File file) throws IOException {
         Runtime runtime = Runtime.getRuntime();
         String[] scriptFindConky = { "/usr/bin/pgrep", "conky" };
@@ -204,39 +261,32 @@ public class ConkyPaired {
         }
     }
 
+    /* opens the main list and loads the pairs line by line */
     private void populateChoicesList() {
         File picsDir = new File(picsLoc);
         File scriptsDir = new File(scriptsLoc);
+        String listFilename = listsLoc + "/" + mainList;
         List<String> pics = Arrays.asList(picsDir.list());
         List<String> scripts = Arrays.asList(scriptsDir.list());
-        HashMap<Integer, String> numToScript = new HashMap<Integer, String>();
-        HashMap<Integer, String> numToPic = new HashMap<Integer, String>();
-
-        for (String scriptName : scripts) {
-            /* extract a number from the file name */
-            Integer scriptNumber = Integer.parseInt(scriptName.replaceAll("[\\D]", ""));
-            if (scriptNumber != null) {
-                numToScript.put(scriptNumber, scriptName);
+        try {
+            CSVReader reader;
+            reader = new CSVReader(new FileReader(listFilename));
+            String[] nextLine;
+            while ((nextLine = reader.readNext()) != null) {
+                /* if the line has the correct number of entries */
+                if (nextLine.length == 3) {
+                    String name = nextLine[0];
+                    String script = nextLine[1];
+                    String pic = nextLine[2];
+                    /* if the script and pic exist */
+                    if (pics.contains(pic) && scripts.contains(script)) {
+                        pairs.add(new Pair(name, scriptsLoc + "/" + script, picsLoc + "/" + pic));
+                    }
+                }
             }
+            reader.close();
+        } catch (IOException e) {
+            logger.error("failed to load the list");
         }
-
-        for (String picName : pics) {
-            /* extract a number from the file name */
-            Integer picNumber = Integer.parseInt(picName.replaceAll("[\\D]", ""));
-            if (picNumber != null) {
-                numToPic.put(picNumber, picName);
-            }
-        }
-
-        Set<Integer> scriptInts = numToScript.keySet();
-
-        for (Integer scriptInt : scriptInts) {
-            if (numToPic.containsKey(scriptInt)) {
-
-            }
-        }
-
-        pairs.add(new Pair("dragon", "scripts/1_conkyrc", "pics/1.jpg"));
-        pairs.add(new Pair("girl", "scripts/2_conkyrc", "pics/2.jpg"));
     }
 }
