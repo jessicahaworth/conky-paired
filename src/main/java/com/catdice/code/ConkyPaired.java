@@ -3,6 +3,7 @@ package com.catdice.code;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -10,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.swt.SWT;
@@ -27,6 +29,7 @@ import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Shell;
 
 import au.com.bytecode.opencsv.CSVReader;
+import au.com.bytecode.opencsv.CSVWriter;
 
 /**
  * Hello world!
@@ -37,6 +40,7 @@ public class ConkyPaired {
     private String picsLoc = "pics";
     private String scriptsLoc = "scripts";
     private String mainList = "main.list";
+    private String listFilename = listsLoc + "/" + mainList;
 
     private final Display display = new Display();
     private final Shell shell = new Shell(display, SWT.TITLE);
@@ -171,7 +175,21 @@ public class ConkyPaired {
 
     /* rewrites the main file to reflect the pairs in memory */
     private void persistPairs() {
-        // TODO Auto-generated method stub
+        try {
+            /* clear the existing file */
+            File mainFile = new File(listFilename);
+            FileUtils.forceDelete(mainFile);
+            FileUtils.touch(mainFile);
+
+            /* create a new file */
+            CSVWriter writer = new CSVWriter(new FileWriter(listFilename), '\t');
+            for (Pair p : pairs) {
+                writer.writeNext(p.getEntries());
+            }
+            writer.close();
+        } catch (IOException e) {
+            logger.error("error persisting pair list");
+        }
     }
 
     /* finds the pair matching the choice in the list of pairs */
@@ -265,7 +283,6 @@ public class ConkyPaired {
     private void populateChoicesList() {
         File picsDir = new File(picsLoc);
         File scriptsDir = new File(scriptsLoc);
-        String listFilename = listsLoc + "/" + mainList;
         List<String> pics = Arrays.asList(picsDir.list());
         List<String> scripts = Arrays.asList(scriptsDir.list());
         try {

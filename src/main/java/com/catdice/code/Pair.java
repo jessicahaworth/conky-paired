@@ -38,6 +38,14 @@ public class Pair {
         return false;
     }
 
+    public String[] getEntries() {
+        String[] entries = new String[3];
+        entries[0] = name;
+        entries[1] = conkyLoc;
+        entries[2] = picLoc;
+        return entries;
+    }
+
     public String getName() {
         return name;
     }
