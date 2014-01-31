@@ -54,6 +54,7 @@ public class ConkyPaired {
     private String newPicChoice;
     private String newPairName;
     List<Pair> pairs = new ArrayList<Pair>();
+    private org.eclipse.swt.widgets.List list;
 
     public static void main(String[] args) {
         new ConkyPaired();
@@ -176,9 +177,11 @@ public class ConkyPaired {
         addNewPairButton.setText("Create new pair");
         addNewPairButton.addSelectionListener(new SelectionAdapter() {
             public void widgetSelected(SelectionEvent e) {
-                Pair pair = new Pair(newPairName, newScriptChoice, newPicChoice);
-                pairs.add(pair);
-                persistPairs();
+                if (newPairName != null && newPairName.length() > 0) {
+                    Pair pair = new Pair(newPairName, newScriptChoice, newPicChoice);
+                    pairs.add(pair);
+                    persistPairs();
+                }
             }
         });
 
@@ -187,7 +190,6 @@ public class ConkyPaired {
 
     /* initializes the list of pairs in the gui */
     private void initializeList() {
-        final org.eclipse.swt.widgets.List list;
         list = new org.eclipse.swt.widgets.List(shell, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
         for (Pair p : pairs) {
             list.add(p.getName());
@@ -213,6 +215,14 @@ public class ConkyPaired {
         list.pack();
     }
 
+    public void refreshList() {
+        list.removeAll();
+        for (Pair p : pairs) {
+            list.add(p.getName());
+        }
+        list.redraw();
+    }
+
     /* initializes the dropdown menu */
     private void initializeMenu() {
         Menu bar = new Menu(shell, SWT.BAR);
@@ -224,8 +234,7 @@ public class ConkyPaired {
         item.setText("Manage");
         item.addListener(SWT.Selection, new Listener() {
             public void handleEvent(Event e) {
-                logger.info("manage");
-                managementShell.open();
+                logger.info("file -> manage");
             }
         });
 
@@ -242,8 +251,10 @@ public class ConkyPaired {
         loadButton.addSelectionListener(new SelectionAdapter() {
             public void widgetSelected(SelectionEvent e) {
                 Pair pair = getPair(choice);
-                changeConkyAndPic(pair.getPicLoc(), pair.getConkyLoc());
-                logger.info("Changed Background to " + pair.getName());
+                if (pair != null) {
+                    changeConkyAndPic(pair.getPicLoc(), pair.getConkyLoc());
+                    logger.info("Changed Background to " + pair.getName());
+                }
             }
         });
         buttonNum = processButtonLocation(loadButton, buttonNum);
@@ -254,19 +265,21 @@ public class ConkyPaired {
         deleteButton.addSelectionListener(new SelectionAdapter() {
             public void widgetSelected(SelectionEvent e) {
                 Pair pair = getPair(choice);
-                MessageBox messageBox = new MessageBox(shell, SWT.ICON_QUESTION | SWT.OK | SWT.CANCEL);
-                messageBox.setText("About to delete");
-                messageBox.setMessage("Delete the pair \"" + pair.getName() + "\"?");
-                logger.info("Asking to delete " + pair.getName());
-                int buttonID = messageBox.open();
-                switch (buttonID) {
-                case SWT.YES:
-                    logger.info("Deleting " + pair.getName());
-                    pairs.remove(pair);
-                    persistPairs();
-                case SWT.CANCEL:
-                    logger.info("Aborted deletion of " + pair.getName());
-                    /* do nothing */
+                if (pair != null) {
+                    MessageBox messageBox = new MessageBox(shell, SWT.ICON_QUESTION | SWT.OK | SWT.CANCEL);
+                    messageBox.setText("About to delete");
+                    messageBox.setMessage("Delete the pair \"" + pair.getName() + "\"?");
+                    logger.info("Asking to delete " + pair.getName());
+                    int buttonID = messageBox.open();
+                    switch (buttonID) {
+                    case SWT.OK:
+                        logger.info("Deleting " + pair.getName());
+                        pairs.remove(pair);
+                        persistPairs();
+                    case SWT.CANCEL:
+                        logger.info("Aborted deletion of " + pair.getName());
+                        /* do nothing */
+                    }
                 }
             }
         });
@@ -300,6 +313,7 @@ public class ConkyPaired {
                 writer.writeNext(p.getEntries());
             }
             writer.close();
+            refreshList();
         } catch (IOException e) {
             logger.error("error persisting pair list");
         }
@@ -318,7 +332,9 @@ public class ConkyPaired {
     }
 
     /* change the desktop background and conky script to the new choice */
-    private void changeConkyAndPic(String fileLocPic, String fileLocConky) {
+    private void changeConkyAndPic(String filePic, String fileConky) {
+        String fileLocConky = scriptsLoc + "/" + fileConky;
+        String fileLocPic = picsLoc + "/" + filePic;
         File picFile = new File(fileLocPic);
         File conkyFile = new File(fileLocConky);
         try {
@@ -410,7 +426,7 @@ public class ConkyPaired {
                     String pic = nextLine[2];
                     /* if the script and pic exist */
                     if (pics.contains(pic) && scripts.contains(script)) {
-                        pairs.add(new Pair(name, scriptsLoc + "/" + script, picsLoc + "/" + pic));
+                        pairs.add(new Pair(name, script, pic));
                     }
                 }
             }
