@@ -16,6 +16,7 @@ import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 
@@ -65,17 +66,16 @@ public final class ManagementShell {
 
         Button addNewScriptButton = new Button(scriptShell, SWT.PUSH);
         addNewScriptButton.setText("Add new script");
-        listScript.pack();
         addNewScriptButton.pack();
+
+        listScript.pack();
+        listPic.pack();
         scriptShell.pack();
+        picShell.pack();
 
         Button addNewPicButton = new Button(picShell, SWT.PUSH);
         addNewPicButton.setText("Add new pic");
-        listScript.pack();
         addNewPicButton.pack();
-        scriptShell.pack();
-        listPic.pack();
-        picShell.pack();
 
         listShell.pack();
 
@@ -90,8 +90,6 @@ public final class ManagementShell {
 
         addNewPairButton = new Button(managementShell, SWT.PUSH);
         addNewPairButton.setText("Create new pair");
-
-        addNewPicButton.pack();
 
         setListeners();
     }
@@ -137,11 +135,52 @@ public final class ManagementShell {
             public void widgetSelected(SelectionEvent e) {
                 if (cp.getNewPairName() != null && cp.getNewPairName().length() > 0) {
                     Pair pair = new Pair(cp.getNewPairName(), cp.getNewScriptChoice(), cp.getNewPicChoice());
-                    cp.getPairs().add(pair);
+                    if (pairNameExists(pair)) {
+                        MessageBox messageBox = new MessageBox(managementShell, SWT.ICON_QUESTION | SWT.OK | SWT.CANCEL);
+                        messageBox.setText("About to override");
+                        messageBox.setMessage("Override the pair \"" + pair.getName() + "\"?");
+                        logger.info("Asking to override " + pair.getName());
+                        int buttonID = messageBox.open();
+                        switch (buttonID) {
+                        case SWT.OK:
+                            logger.info("Overriding " + pair.getName());
+                            removePairByName(pair);
+                            cp.getPairs().add(pair);
+                        case SWT.CANCEL:
+                            logger.info("Aborted overriding of " + pair.getName());
+                            /* do nothing */
+                        }
+                    } else {
+                        cp.getPairs().add(pair);
+                    }
                     cp.persistPairs();
                 }
             }
         });
+    }
+
+    private void removePairByName(Pair pair) {
+        Pair pairToRemove = null;
+        for (Pair p : cp.getPairs()) {
+            if (p.getName().equals(pair.getName())) {
+                pairToRemove = p;
+                break;
+            }
+        }
+        if (pairToRemove != null) {
+            cp.getPairs().remove(pairToRemove);
+        }
+    }
+
+    private boolean pairNameExists(Pair pair) {
+        boolean matches = false;
+        for (Pair p : cp.getPairs()) {
+            if (p.getName().equals(pair.getName())) {
+                matches = true;
+                break;
+            }
+        }
+        return matches;
     }
 
     public Button getAddNewPairButton() {

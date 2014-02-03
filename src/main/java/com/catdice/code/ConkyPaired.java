@@ -73,7 +73,7 @@ public class ConkyPaired {
         setUpButtons();
 
         shell.pack();
-        shell.setSize(180, 300);
+        shell.setSize(200, 400);
         shell.open();
         while (!shell.isDisposed()) {
             if (!display.readAndDispatch())
