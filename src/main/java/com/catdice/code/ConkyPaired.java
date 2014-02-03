@@ -15,14 +15,11 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.events.ModifyEvent;
-import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Button;
-import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
@@ -30,7 +27,6 @@ import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.swt.widgets.Text;
 
 import au.com.bytecode.opencsv.CSVReader;
 import au.com.bytecode.opencsv.CSVWriter;
@@ -53,7 +49,9 @@ public class ConkyPaired {
     private String newScriptChoice;
     private String newPicChoice;
     private String newPairName;
+
     List<Pair> pairs = new ArrayList<Pair>();
+
     private org.eclipse.swt.widgets.List list;
 
     public static void main(String[] args) {
@@ -85,87 +83,8 @@ public class ConkyPaired {
     }
 
     private void initializeManagementShell() {
-        ManagementShell managementShellSingleton = new ManagementShell(display);
-        managementShell = managementShellSingleton.getManagementShell();
-
-        final org.eclipse.swt.widgets.List listScript = managementShellSingleton.getListScript();
-        final org.eclipse.swt.widgets.List listPic = managementShellSingleton.getListPic();
-        Composite scriptShell = managementShellSingleton.getScriptShell();
-        Composite listShell = managementShellSingleton.getListShell();
-        Composite picShell = managementShellSingleton.getPicShell();
-
-        listScript.addSelectionListener(new SelectionListener() {
-            public void widgetSelected(SelectionEvent event) {
-                handleChoice(event);
-            }
-
-            public void widgetDefaultSelected(SelectionEvent event) {
-                logger.info("default selection");
-                handleChoice(event);
-            }
-
-            private void handleChoice(SelectionEvent event) {
-                String[] selections = listScript.getSelection();
-                String choiceText = selections[0];
-                logger.info("You selected: " + choiceText);
-                newScriptChoice = choiceText;
-            }
-        });
-        Button addNewScriptButton = new Button(scriptShell, SWT.PUSH);
-        addNewScriptButton.setText("Add new script");
-        listScript.pack();
-        addNewScriptButton.pack();
-        scriptShell.pack();
-
-        listPic.addSelectionListener(new SelectionListener() {
-            public void widgetSelected(SelectionEvent event) {
-                handleChoice(event);
-            }
-
-            public void widgetDefaultSelected(SelectionEvent event) {
-                logger.info("default selection");
-                handleChoice(event);
-            }
-
-            private void handleChoice(SelectionEvent event) {
-                String[] selections = listPic.getSelection();
-                String choiceText = selections[0];
-                logger.info("You selected: " + choiceText);
-                newPicChoice = choiceText;
-            }
-        });
-        Button addNewPicButton = new Button(picShell, SWT.PUSH);
-        addNewPicButton.setText("Add new pic");
-        listScript.pack();
-        addNewPicButton.pack();
-        scriptShell.pack();
-        listPic.pack();
-        picShell.pack();
-
-        listShell.pack();
-
-        Text text = new Text(managementShell, SWT.BORDER | SWT.SINGLE);
-        text.addModifyListener(new ModifyListener() {
-            public void modifyText(ModifyEvent e) {
-                Text text = (Text) e.widget;
-                logger.info("new pair name is " + text.getText());
-                newPairName = text.getText().trim();
-            }
-        });
-
-        Button addNewPairButton = new Button(managementShell, SWT.PUSH);
-        addNewPairButton.setText("Create new pair");
-        addNewPairButton.addSelectionListener(new SelectionAdapter() {
-            public void widgetSelected(SelectionEvent e) {
-                if (newPairName != null && newPairName.length() > 0) {
-                    Pair pair = new Pair(newPairName, newScriptChoice, newPicChoice);
-                    pairs.add(pair);
-                    persistPairs();
-                }
-            }
-        });
-
-        addNewPicButton.pack();
+        ManagementShell mShellSingleton = new ManagementShell(display, this);
+        managementShell = mShellSingleton.getManagementShell();
     }
 
     /* initializes the list of pairs in the gui */
@@ -280,7 +199,7 @@ public class ConkyPaired {
     }
 
     /* rewrites the main file to reflect the pairs in memory */
-    private void persistPairs() {
+    public void persistPairs() {
         try {
             /* clear the existing file */
             File mainFile = new File(listFilename);
@@ -422,5 +341,37 @@ public class ConkyPaired {
 
     public static String getPicsLoc() {
         return picsLoc;
+    }
+
+    public String getNewScriptChoice() {
+        return newScriptChoice;
+    }
+
+    public void setNewScriptChoice(String newScriptChoice) {
+        this.newScriptChoice = newScriptChoice;
+    }
+
+    public String getNewPicChoice() {
+        return newPicChoice;
+    }
+
+    public void setNewPicChoice(String newPicChoice) {
+        this.newPicChoice = newPicChoice;
+    }
+
+    public String getNewPairName() {
+        return newPairName;
+    }
+
+    public void setNewPairName(String newPairName) {
+        this.newPairName = newPairName;
+    }
+
+    public List<Pair> getPairs() {
+        return pairs;
+    }
+
+    public void setPairs(List<Pair> pairs) {
+        this.pairs = pairs;
     }
 }
