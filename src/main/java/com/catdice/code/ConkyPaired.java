@@ -40,15 +40,15 @@ import au.com.bytecode.opencsv.CSVWriter;
  */
 public class ConkyPaired {
     private Log logger = LogFactory.getLog(this.getClass());
-    private String listsLoc = "lists";
-    private String picsLoc = "pics";
-    private String scriptsLoc = "scripts";
+    private static String listsLoc = "lists";
+    private static String picsLoc = "pics";
+    private static String scriptsLoc = "scripts";
     private String mainList = "main.list";
     private String listFilename = listsLoc + "/" + mainList;
 
     private final Display display = new Display();
     private final Shell shell = new Shell(display, SWT.TITLE);
-    private final Shell managementShell = new Shell(display);
+    private Shell managementShell;
     private String choice;
     private String newScriptChoice;
     private String newPicChoice;
@@ -85,27 +85,15 @@ public class ConkyPaired {
     }
 
     private void initializeManagementShell() {
-        managementShell.setText("Create new pair");
-        managementShell.setLayout(new FillLayout(SWT.VERTICAL));
-        managementShell.setSize(400, 400);
+        ManagementShell managementShellSingleton = new ManagementShell(display);
+        managementShell = managementShellSingleton.getManagementShell();
 
-        /* load scripts and pics */
-        File scriptsDir = new File(scriptsLoc);
-        File picsDir = new File(picsLoc);
-        List<String> scripts = Arrays.asList(scriptsDir.list());
-        List<String> pics = Arrays.asList(picsDir.list());
+        final org.eclipse.swt.widgets.List listScript = managementShellSingleton.getListScript();
+        final org.eclipse.swt.widgets.List listPic = managementShellSingleton.getListPic();
+        Composite scriptShell = managementShellSingleton.getScriptShell();
+        Composite listShell = managementShellSingleton.getListShell();
+        Composite picShell = managementShellSingleton.getPicShell();
 
-        Composite listShell = new Composite(managementShell, SWT.NONE);
-        listShell.setLayout(new FillLayout(SWT.HORIZONTAL));
-
-        Composite scriptShell = new Composite(listShell, SWT.NONE);
-        scriptShell.setLayout(new FillLayout(SWT.VERTICAL));
-        /* initialize list of scripts */
-        final org.eclipse.swt.widgets.List listScript;
-        listScript = new org.eclipse.swt.widgets.List(scriptShell, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
-        for (String script : scripts) {
-            listScript.add(script);
-        }
         listScript.addSelectionListener(new SelectionListener() {
             public void widgetSelected(SelectionEvent event) {
                 handleChoice(event);
@@ -129,14 +117,6 @@ public class ConkyPaired {
         addNewScriptButton.pack();
         scriptShell.pack();
 
-        Composite picShell = new Composite(listShell, SWT.NONE);
-        picShell.setLayout(new FillLayout(SWT.VERTICAL));
-        /* initialize list of pics */
-        final org.eclipse.swt.widgets.List listPic;
-        listPic = new org.eclipse.swt.widgets.List(picShell, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
-        for (String pic : pics) {
-            listPic.add(pic);
-        }
         listPic.addSelectionListener(new SelectionListener() {
             public void widgetSelected(SelectionEvent event) {
                 handleChoice(event);
@@ -247,7 +227,7 @@ public class ConkyPaired {
 
         /* the load button */
         Button loadButton = new Button(shell, SWT.PUSH);
-        loadButton.setText("Change");
+        loadButton.setText("Apply");
         loadButton.addSelectionListener(new SelectionAdapter() {
             public void widgetSelected(SelectionEvent e) {
                 Pair pair = getPair(choice);
@@ -287,7 +267,7 @@ public class ConkyPaired {
 
         /* the new button */
         Button newButton = new Button(shell, SWT.PUSH);
-        newButton.setText("New");
+        newButton.setText("Edit");
         newButton.addSelectionListener(new SelectionAdapter() {
             public void widgetSelected(SelectionEvent e) {
                 logger.info("Creating new pair");
@@ -434,5 +414,13 @@ public class ConkyPaired {
         } catch (IOException e) {
             logger.error("failed to load the list");
         }
+    }
+
+    public static String getScriptsLoc() {
+        return scriptsLoc;
+    }
+
+    public static String getPicsLoc() {
+        return picsLoc;
     }
 }
