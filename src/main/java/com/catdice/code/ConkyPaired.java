@@ -42,9 +42,12 @@ public class ConkyPaired {
     private String mainList = "main.list";
     private String listFilename = listsLoc + "/" + mainList;
 
-    private final Display display = new Display();
+    private final Display display = Display.getDefault();
     private final Shell shell = new Shell(display, SWT.TITLE);
+
+    private ManagementShell mShellSingleton;
     private Shell managementShell;
+
     private String choice;
     private String newScriptChoice;
     private String newPicChoice;
@@ -66,11 +69,19 @@ public class ConkyPaired {
         newPicChoice = null;
         newPairName = null;
 
-        initializeManagementShell();
+        mShellSingleton = new ManagementShell(display, this);
+
         populateChoicesList();
         initializeMenu();
         initializeList();
         setUpButtons();
+
+        shell.addListener(SWT.Close, new Listener() {
+            public void handleEvent(Event event) {
+                logger.info("shell handling close event");
+                display.dispose();
+            }
+        });
 
         shell.pack();
         shell.setSize(200, 400);
@@ -80,11 +91,6 @@ public class ConkyPaired {
                 display.sleep();
         }
         display.dispose();
-    }
-
-    private void initializeManagementShell() {
-        ManagementShell mShellSingleton = new ManagementShell(display, this);
-        managementShell = mShellSingleton.getManagementShell();
     }
 
     /* initializes the list of pairs in the gui */
@@ -190,7 +196,7 @@ public class ConkyPaired {
         newButton.addSelectionListener(new SelectionAdapter() {
             public void widgetSelected(SelectionEvent e) {
                 logger.info("Creating new pair");
-                managementShell.open();
+                mShellSingleton.makeNewManagementShell();
             }
         });
         buttonNum = processButtonLocation(newButton, buttonNum);

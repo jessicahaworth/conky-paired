@@ -1,9 +1,11 @@
 package com.catdice.code;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.swt.SWT;
@@ -16,33 +18,51 @@ import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.FileDialog;
+import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 
 public final class ManagementShell {
     private Log logger = LogFactory.getLog(this.getClass());
-    private final org.eclipse.swt.widgets.List listScript;
-    private final org.eclipse.swt.widgets.List listPic;
+    private org.eclipse.swt.widgets.List listScript;
+    private org.eclipse.swt.widgets.List listPic;
+
+    private ConkyPaired cp;
+    private Display display;
+
     private Shell managementShell;
+
     private Composite scriptShell;
     private Composite listShell;
     private Composite picShell;
+
+    private Button addNewPicButton;
+    private Button addNewScriptButton;
     private Button addNewPairButton;
-    private final ConkyPaired cp;
+
+    private File scriptsDir;
+    private File picsDir;
 
     public ManagementShell(Display display, final ConkyPaired cp) {
         this.cp = cp;
+        this.display = display;
+
+        /* load scripts and pics */
+        scriptsDir = new File(ConkyPaired.getScriptsLoc());
+        picsDir = new File(ConkyPaired.getPicsLoc());
+    }
+
+    public void makeNewManagementShell() {
+        List<String> scripts = Arrays.asList(scriptsDir.list());
+        List<String> pics = Arrays.asList(picsDir.list());
+
         managementShell = new Shell(display);
         managementShell.setText("Create new pair");
         managementShell.setLayout(new FillLayout(SWT.VERTICAL));
         managementShell.setSize(400, 400);
-
-        /* load scripts and pics */
-        File scriptsDir = new File(ConkyPaired.getScriptsLoc());
-        File picsDir = new File(ConkyPaired.getPicsLoc());
-        List<String> scripts = Arrays.asList(scriptsDir.list());
-        List<String> pics = Arrays.asList(picsDir.list());
 
         listShell = new Composite(managementShell, SWT.NONE);
         listShell.setLayout(new FillLayout(SWT.HORIZONTAL));
@@ -64,7 +84,7 @@ public final class ManagementShell {
             listPic.add(pic);
         }
 
-        Button addNewScriptButton = new Button(scriptShell, SWT.PUSH);
+        addNewScriptButton = new Button(scriptShell, SWT.PUSH);
         addNewScriptButton.setText("Add new script");
         addNewScriptButton.pack();
 
@@ -73,7 +93,7 @@ public final class ManagementShell {
         scriptShell.pack();
         picShell.pack();
 
-        Button addNewPicButton = new Button(picShell, SWT.PUSH);
+        addNewPicButton = new Button(picShell, SWT.PUSH);
         addNewPicButton.setText("Add new pic");
         addNewPicButton.pack();
 
@@ -92,6 +112,15 @@ public final class ManagementShell {
         addNewPairButton.setText("Create new pair");
 
         setListeners();
+
+        managementShell.addListener(SWT.Close, new Listener() {
+            public void handleEvent(Event event) {
+                logger.info("managementShell handling close event");
+                managementShell.dispose();
+            }
+        });
+
+        managementShell.open();
     }
 
     private void setListeners() {
@@ -157,6 +186,25 @@ public final class ManagementShell {
                 }
             }
         });
+
+        addNewScriptButton.addSelectionListener(new SelectionAdapter() {
+            public void widgetSelected(SelectionEvent e) {
+                FileDialog fileDialog = new FileDialog(managementShell, SWT.SAVE);
+                fileDialog.setText("Add a new script");
+                String location = fileDialog.open();
+                logger.info("location found: " + location);
+                if (location != null) {
+                    File sourceFile = new File(location);
+                    String destFileName = ConkyPaired.getScriptsLoc() + "/" + sourceFile.getName();
+                    File destFile = new File(destFileName);
+                    try {
+                        FileUtils.copyFile(sourceFile, destFile);
+                    } catch (IOException e1) {
+                        logger.error("unable to copy over file");
+                    }
+                }
+            }
+        });
     }
 
     private void removePairByName(Pair pair) {
@@ -183,6 +231,15 @@ public final class ManagementShell {
         return matches;
     }
 
+    public void refreshScriptsList() {
+        listScript.removeAll();
+        List<String> scripts = Arrays.asList(scriptsDir.list());
+        for (String s : scripts) {
+            listScript.add(s);
+        }
+        listScript.redraw();
+    }
+
     public Button getAddNewPairButton() {
         return addNewPairButton;
     }
@@ -207,7 +264,4 @@ public final class ManagementShell {
         return picShell;
     }
 
-    public Shell getManagementShell() {
-        return managementShell;
-    }
 }
