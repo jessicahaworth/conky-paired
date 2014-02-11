@@ -46,7 +46,6 @@ public class ConkyPaired {
     private final Shell shell = new Shell(display, SWT.TITLE);
 
     private ManagementShell mShellSingleton;
-    private Shell managementShell;
 
     private String choice;
     private String newScriptChoice;
@@ -181,9 +180,11 @@ public class ConkyPaired {
                         logger.info("Deleting " + pair.getName());
                         pairs.remove(pair);
                         persistPairs();
+                        break;
                     case SWT.CANCEL:
                         logger.info("Aborted deletion of " + pair.getName());
-                        /* do nothing */
+                        break;
+                    /* do nothing */
                     }
                 }
             }

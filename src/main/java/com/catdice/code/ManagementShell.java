@@ -40,6 +40,8 @@ public final class ManagementShell {
     private Composite picShell;
 
     private Button addNewPicButton;
+    private Button deleteScriptButton;
+    private Button deletePicButton;
     private Button addNewScriptButton;
     private Button addNewPairButton;
 
@@ -84,6 +86,10 @@ public final class ManagementShell {
             listPic.add(pic);
         }
 
+        deleteScriptButton = new Button(scriptShell, SWT.PUSH);
+        deleteScriptButton.setText("Delete script");
+        deleteScriptButton.pack();
+
         addNewScriptButton = new Button(scriptShell, SWT.PUSH);
         addNewScriptButton.setText("Add new script");
         addNewScriptButton.pack();
@@ -92,6 +98,10 @@ public final class ManagementShell {
         listPic.pack();
         scriptShell.pack();
         picShell.pack();
+
+        deletePicButton = new Button(picShell, SWT.PUSH);
+        deletePicButton.setText("Delete pic");
+        deletePicButton.pack();
 
         addNewPicButton = new Button(picShell, SWT.PUSH);
         addNewPicButton.setText("Add new pic");
@@ -187,6 +197,64 @@ public final class ManagementShell {
             }
         });
 
+        deleteScriptButton.addSelectionListener(new SelectionAdapter() {
+            public void widgetSelected(SelectionEvent e) {
+                String choice = cp.getNewScriptChoice();
+                if (choice != null) {
+                    MessageBox messageBox = new MessageBox(managementShell, SWT.ICON_QUESTION | SWT.OK | SWT.CANCEL);
+                    messageBox.setText("About to delete");
+                    messageBox.setMessage("Delete the script \"" + choice + "\"?");
+                    logger.info("Asking to delete " + choice);
+                    int buttonID = messageBox.open();
+                    switch (buttonID) {
+                    case SWT.OK:
+                        String filename = ConkyPaired.getScriptsLoc() + "/" + choice;
+                        try {
+                            FileUtils.forceDelete(new File(filename));
+                            refreshScriptsList();
+                            logger.info("deleting " + choice);
+                        } catch (IOException e1) {
+                            logger.error("failed to delete " + choice);
+                        }
+                        break;
+                    case SWT.CANCEL:
+                        /* do nothing */
+                        logger.info("Aborted deletion of " + choice);
+                        break;
+                    }
+                }
+            }
+        });
+
+        deletePicButton.addSelectionListener(new SelectionAdapter() {
+            public void widgetSelected(SelectionEvent e) {
+                String choice = cp.getNewPicChoice();
+                if (choice != null) {
+                    MessageBox messageBox = new MessageBox(managementShell, SWT.ICON_QUESTION | SWT.OK | SWT.CANCEL);
+                    messageBox.setText("About to delete");
+                    messageBox.setMessage("Delete the pic \"" + choice + "\"?");
+                    logger.info("Asking to delete " + choice);
+                    int buttonID = messageBox.open();
+                    switch (buttonID) {
+                    case SWT.OK:
+                        String filename = ConkyPaired.getPicsLoc() + "/" + choice;
+                        try {
+                            FileUtils.forceDelete(new File(filename));
+                            refreshPicsList();
+                            logger.info("deleting " + choice);
+                        } catch (IOException e1) {
+                            logger.error("failed to delete " + choice);
+                        }
+                        break;
+                    case SWT.CANCEL:
+                        /* do nothing */
+                        logger.info("Aborted deletion of " + choice);
+                        break;
+                    }
+                }
+            }
+        });
+
         addNewScriptButton.addSelectionListener(new SelectionAdapter() {
             public void widgetSelected(SelectionEvent e) {
                 FileDialog fileDialog = new FileDialog(managementShell, SWT.SAVE);
@@ -199,6 +267,27 @@ public final class ManagementShell {
                     File destFile = new File(destFileName);
                     try {
                         FileUtils.copyFile(sourceFile, destFile);
+                        refreshScriptsList();
+                    } catch (IOException e1) {
+                        logger.error("unable to copy over file");
+                    }
+                }
+            }
+        });
+
+        addNewPicButton.addSelectionListener(new SelectionAdapter() {
+            public void widgetSelected(SelectionEvent e) {
+                FileDialog fileDialog = new FileDialog(managementShell, SWT.SAVE);
+                fileDialog.setText("Add a new pic");
+                String location = fileDialog.open();
+                logger.info("location found: " + location);
+                if (location != null) {
+                    File sourceFile = new File(location);
+                    String destFileName = ConkyPaired.getPicsLoc() + "/" + sourceFile.getName();
+                    File destFile = new File(destFileName);
+                    try {
+                        FileUtils.copyFile(sourceFile, destFile);
+                        refreshPicsList();
                     } catch (IOException e1) {
                         logger.error("unable to copy over file");
                     }
@@ -238,6 +327,14 @@ public final class ManagementShell {
             listScript.add(s);
         }
         listScript.redraw();
+    }
+
+    public void refreshPicsList() {
+        listPic.removeAll();
+        List<String> scripts = Arrays.asList(picsDir.list());
+        for (String s : scripts) {
+            listPic.add(s);
+        }
     }
 
     public Button getAddNewPairButton() {
