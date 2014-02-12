@@ -14,6 +14,8 @@ import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
+import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
@@ -35,6 +37,9 @@ public final class ManagementShell {
 
     private Shell managementShell;
 
+    private Composite previewImageShell;
+    private Composite actualImageShell;
+    private Composite createNewShell;
     private Composite scriptShell;
     private Composite listShell;
     private Composite picShell;
@@ -47,6 +52,10 @@ public final class ManagementShell {
 
     private File scriptsDir;
     private File picsDir;
+
+    private int manageShellSize = 500;
+    private int imageWidth = manageShellSize / 2;
+    private int imageVerticalMargin = (manageShellSize - 200) / 2;
 
     public ManagementShell(Display display, final ConkyPaired cp) {
         this.cp = cp;
@@ -63,10 +72,20 @@ public final class ManagementShell {
 
         managementShell = new Shell(display);
         managementShell.setText("Create new pair");
-        managementShell.setLayout(new FillLayout(SWT.VERTICAL));
-        managementShell.setSize(400, 400);
+        managementShell.setLayout(new FillLayout(SWT.HORIZONTAL));
+        managementShell.setSize(manageShellSize, manageShellSize);
 
-        listShell = new Composite(managementShell, SWT.NONE);
+        createNewShell = new Composite(managementShell, SWT.NONE);
+        createNewShell.setLayout(new FillLayout(SWT.VERTICAL));
+
+        previewImageShell = new Composite(managementShell, SWT.NONE);
+        FillLayout fillLayout = new FillLayout();
+        fillLayout.marginHeight = imageVerticalMargin;
+        previewImageShell.setLayout(fillLayout);
+
+        actualImageShell = new Composite(previewImageShell, SWT.IMAGE_PNG);
+
+        listShell = new Composite(createNewShell, SWT.NONE);
         listShell.setLayout(new FillLayout(SWT.HORIZONTAL));
 
         scriptShell = new Composite(listShell, SWT.NONE);
@@ -108,8 +127,9 @@ public final class ManagementShell {
         addNewPicButton.pack();
 
         listShell.pack();
+        createNewShell.pack();
 
-        Text text = new Text(managementShell, SWT.BORDER | SWT.SINGLE);
+        Text text = new Text(createNewShell, SWT.BORDER | SWT.SINGLE);
         text.addModifyListener(new ModifyListener() {
             public void modifyText(ModifyEvent e) {
                 Text text = (Text) e.widget;
@@ -118,7 +138,7 @@ public final class ManagementShell {
             }
         });
 
-        addNewPairButton = new Button(managementShell, SWT.PUSH);
+        addNewPairButton = new Button(createNewShell, SWT.PUSH);
         addNewPairButton.setText("Create new pair");
 
         setListeners();
@@ -166,6 +186,10 @@ public final class ManagementShell {
                 String[] selections = listPic.getSelection();
                 String choiceText = selections[0];
                 logger.info("You selected: " + choiceText);
+                Image image = new Image(display, picsDir + "/" + choiceText);
+                //                image = resize(image, 150, imageWidth);
+                image = resize(image, imageWidth);
+                actualImageShell.setBackgroundImage(image);
                 cp.setNewPicChoice(choiceText);
             }
         });
@@ -335,6 +359,21 @@ public final class ManagementShell {
         for (String s : scripts) {
             listPic.add(s);
         }
+    }
+
+    /* based on http://aniszczyk.org/2007/08/09/resizing-images-using-swt/ */
+    /*  modifed to scale based just on the width */
+    private Image resize(Image image, int width) {
+        double heightRatio = (double) image.getBounds().height / (double) image.getBounds().width;
+        int newHeight = (int) (width * heightRatio);
+        Image scaled = new Image(Display.getDefault(), width, newHeight);
+        GC gc = new GC(scaled);
+        gc.setAntialias(SWT.ON);
+        gc.setInterpolation(SWT.HIGH);
+        gc.drawImage(image, 0, 0, image.getBounds().width, image.getBounds().height, 0, 0, width, newHeight);
+        gc.dispose();
+        image.dispose();
+        return scaled;
     }
 
     public Button getAddNewPairButton() {
